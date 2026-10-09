@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root{--g:#166534;--ink:#14301f;--mut:#304635}
+body,.app{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif}
+button,input,select,textarea{font-family:inherit}
+.app h1{letter-spacing:-.02em;font-weight:700}
+.app{min-height:100vh;color:var(--ink);position:relative;
+ background:linear-gradient(135deg,#f6fff9 0%,#d9f7e4 45%,#a7ebc3 100%)}
+.glass{position:relative;background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.62));
+ backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+ border:1px solid rgba(255,255,255,.65);border-radius:24px;
+ box-shadow:0 10px 40px rgba(16,120,60,.14),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.25),inset 1px 0 0 rgba(255,255,255,.5)}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+ background:linear-gradient(120deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 35%)}
+.glass>*{position:relative}
+.btn{background:linear-gradient(135deg,rgba(20,83,45,.96),rgba(22,101,52,.96));border:1px solid rgba(255,255,255,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);color:#fff;border-radius:12px;padding:.6rem 1rem;font-weight:600;
+ display:inline-flex;gap:.4rem;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;filter:drop-shadow(0 6px 12px rgba(22,163,74,.3))}
+.btn:disabled{opacity:.7}
+.inp{width:100%;background:rgba(255,255,255,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 3px rgba(22,101,52,.08);border-radius:14px;padding:.65rem .9rem .65rem 2.5rem;outline:none;transition:.2s;color:var(--ink)}
+.inp.plain{padding-left:.9rem}
+.inp:focus{background:rgba(255,255,255,.6);border-color:var(--g);box-shadow:0 0 0 3px rgba(74,222,128,.3)}
+.nav{display:flex;align-items:center;gap:.7rem;padding:.7rem .8rem;border-radius:12px;color:var(--mut);transition:.2s;width:100%;text-align:left}
+@media (hover:hover){.nav:hover{background:rgba(255,255,255,.6)}}
+.nav.on{background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,255,255,.45));color:var(--g);font-weight:600;border:1px solid rgba(255,255,255,.9);box-shadow:0 6px 16px rgba(22,101,52,.12),inset 0 1px 0 #fff}
+.rise{animation:rise .45s backwards cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{opacity:0;--ty:12px}}
+.pop{animation:pop .22s backwards}
+@keyframes pop{from{opacity:0;--sx:.95;--sy:.95}}
+.chip{padding:.35rem .8rem;border-radius:999px;font-size:.85rem;color:var(--mut);background:rgba(255,255,255,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 1px 0 #fff;transition:.2s}
+.chip.on{background:var(--g);color:#fff;border-color:var(--g)}
+.badge{padding:.15rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+th{text-align:left;font-weight:500;color:var(--mut);font-size:.85rem;padding:.7rem 1rem;white-space:nowrap}
+td{padding:.8rem 1rem;border-top:1px solid rgba(22,163,74,.12);white-space:nowrap}
+tbody tr{transition:background .2s}tbody tr:hover{background:rgba(255,255,255,.55)}
+.sw{width:40px;height:22px;border-radius:99px;background:#cbd5d0;position:relative;transition:.25s}
+.sw.on{background:#22c55e}
+.sw i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.sw.on i{left:21px}
+
+body{margin:0}
+button{cursor:pointer}
+.bgfx{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.badge.role{background:rgba(236,253,243,.8);color:#166534;border:1px solid #bbf7d0}
+.pg{min-width:36px;height:36px;padding:0 .4rem;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:.9rem;color:var(--mut);background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 1px 0 #fff;transition:.2s}
+@media (hover:hover){.pg:hover:not(:disabled){background:rgba(255,255,255,.85)}}
+.pg.on{background:var(--g);color:#fff;border-color:var(--g)}
+.pg:disabled{opacity:.4;cursor:not-allowed}
+
+/* Each surface resets inherited variables; all its motion uses one transform. */
+[data-liquid]{
+ --tx:0px;--ty:0px;--sx:1;--sy:1;--rot:0deg;
+ transform:translate(var(--tx),var(--ty)) scale(var(--sx),var(--sy)) rotate(var(--rot));
+}
+.app [data-liquid]{position:relative;--radius:24px;transition:box-shadow 250ms,width 300ms,background-color 200ms}
+.app :is(.btn,.nav,.pg){--radius:12px}
+.app .chip{--radius:22px}
+.app [data-liquid]::before,.app [data-liquid]::after{
+ content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+}
+.app [data-liquid]::before{
+ background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,var(--liquid-highlight-opacity)),rgba(255,255,255,var(--liquid-highlight-soft)) 40%,transparent 75%);
+}
+.app :is(.btn,.chip.on,.pg.on)::before{
+ background:radial-gradient(160px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,var(--liquid-highlight-dark)),transparent 75%);
+}
+.app [data-liquid]::after{
+ padding:2px;background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,var(--liquid-border-opacity)) 10%,transparent 85%);
+ -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+ -webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference){
+ .app [data-liquid].liquid-hover::before,.app [data-liquid].liquid-hover::after{opacity:1}
+ .app [data-liquid].liquid-hover{
+  animation:liquid-shape var(--liquid-border-duration) ease-in-out infinite alternate;
+  box-shadow:var(--liquid-hover-shadow);
+ }
+}
+@keyframes liquid-shape{
+ from{border-radius:var(--radius) calc(var(--radius) + var(--liquid-border-amplitude)) var(--radius) calc(var(--radius) + var(--liquid-border-amplitude))}
+ to{border-radius:calc(var(--radius) + var(--liquid-border-amplitude)) var(--radius) calc(var(--radius) + var(--liquid-border-amplitude)) var(--radius)}
+}
+.app .liquid-ripple-layer{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none}
+.liquid-ripple{
+ position:absolute;border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle,transparent 40%,rgba(255,255,255,.4) 58%,#fff 68%,transparent 73%);
+ animation:liquid-wave var(--liquid-ripple-duration) ease-out both;
+}
+@keyframes liquid-wave{
+ from{transform:translate(-50%,-50%) scale(0);opacity:var(--liquid-ripple-opacity)}
+ to{transform:translate(-50%,-50%) scale(1);opacity:0}
+}
+.liquid-filter{position:absolute;pointer-events:none;overflow:hidden}
+.app .btn{backdrop-filter:blur(12px) saturate(180%);-webkit-backdrop-filter:blur(12px) saturate(180%)}
+/* Inactive surfaces retain blur: only one key surface refracts at a time. */
+.liquid-refraction .app :is(.liquid-key,.btn).liquid-water{backdrop-filter:blur(8px) saturate(150%) url(#liquid)}
+.app :is(.btn,.chip,.nav,.pg):focus-visible{outline:2px solid #14532d;outline-offset:3px}
+.bgfx-parallax{position:absolute;inset:-12px;transform:translate(var(--px,0px),var(--py,0px))}
+.blob{
+ position:absolute;border-radius:44% 56% 62% 38% / 45% 40% 60% 55%;filter:blur(60px);pointer-events:none;
+ will-change:transform;animation:liquid-drift var(--duration) var(--delay) ease-in-out infinite alternate;
+}
+@keyframes liquid-drift{
+ from{transform:translate(0,0) rotate(0deg) scale(1);border-radius:44% 56% 62% 38% / 45% 40% 60% 55%}
+ to{transform:translate(var(--drift-x),var(--drift-y)) rotate(var(--turn)) scale(1.15);border-radius:62% 38% 40% 60% / 58% 64% 36% 42%}
+}
+@keyframes liquid-drift-quiet{
+ from{transform:translate(0,0) rotate(0deg) scale(1);border-radius:44% 56% 62% 38% / 45% 40% 60% 55%}
+ to{transform:translate(var(--quiet-x),var(--quiet-y)) rotate(var(--quiet-turn)) scale(1.03);border-radius:48% 52% 58% 42% / 48% 44% 56% 52%}
+}
+@media (prefers-reduced-motion:reduce){
+ .app *:not(.blob),.app *::before,.app *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+ .app [data-liquid]{--tx:0px!important;--ty:0px!important;--sx:1!important;--sy:1!important;--rot:0deg!important}
+ .app .liquid-ripple-layer{display:none}
+ .blob{animation-name:liquid-drift-quiet;animation-duration:var(--slow-duration)}
+}
