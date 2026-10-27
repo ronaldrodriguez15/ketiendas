@@ -1,84 +1,62 @@
 <?php
 declare(strict_types=1);
-
 namespace App\Integrations\PhpPos;
 
 use App\Services\Sales\SaleMapper;
 use Carbon\CarbonInterface;
+use GuzzleHttp\TransferStats;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class PhpPosClient
 {
     public function __construct(private readonly SaleMapper $mapper) {}
 
-    public function salesForDay(CarbonInterface $dia, ?int $localId = null): array
+    public function salesForDay(CarbonInterface $day, ?int $localId = null): array
     {
-        $key = $dia->format('Y-m-d');
-        $result = $this->salesForDays([$key => $dia], $localId)[$key];
+        $key = $day->format('Y-m-d');
+        $result = $this->salesForDays([$key => $day], $localId)[$key];
         if ($result instanceof PosException) throw $result;
         return $result;
     }
 
-    /** @return array<string, array|PosException> Reduced rows only, never raw response bodies. */
+    /** One complete request per local day. Sales has no remote pagination. */
     public function salesForDays(array $days, ?int $localId = null): array
     {
         $results = [];
-        foreach (array_chunk($days, min(3, max(1, (int) config('phppos.concurrencia'))), true) as $chunk) {
-            $pending = $chunk; $rows = []; $offsets = []; $totals = [];
-            foreach ($chunk as $key => $day) { $rows[$key] = []; $offsets[$key] = 0; }
-            while ($pending) {
-                $queries = [];
-                foreach ($pending as $key => $day) {
-                    $queries[$key] = ['path' => '/sales', 'query' => array_filter([
-                        'start_date' => $day->copy()->startOfDay()->format('Y-m-d\TH:i:sP'),
-                        'end_date' => $day->copy()->endOfDay()->format('Y-m-d\TH:i:sP'),
-                        'location_id' => $localId,
-                        'limit' => config('phppos.paginated') ? (int) config('phppos.page_size') : null,
-                        'offset' => config('phppos.paginated') ? $offsets[$key] : null,
-                    ], fn ($v) => $v !== null)];
-                }
-                $responses = $this->batch($queries);
-                foreach ($pending as $key => $day) {
-                    try {
-                        $response = $responses[$key];
-                        $this->ensureResponse($response);
-                        $raw = $response->json();
-                        $raw = isset($raw['data']) ? $raw['data'] : $raw;
-                        if (!is_array($raw) || !array_is_list($raw)) throw new PosException();
-                        $count = count($raw);
-                        $header = $response->header('x-total-records');
-                        $total = ctype_digit((string) $header) ? (int) $header : null;
-                        if (isset($totals[$key]) && $total !== $totals[$key]) throw new PosException();
-                        $totals[$key] = $total;
-                        foreach ($raw as $sale) {
-                            $row = $this->mapper->map($sale);
-                            if (substr($row['fecha'], 0, 10) !== $key || isset($rows[$key][$row['id']])) throw new PosException();
-                            $rows[$key][$row['id']] = $row;
-                        }
-                        unset($raw);
-                        $offsets[$key] += $count;
-                        $size = (int) config('phppos.page_size');
-                        $done = $total !== null ? $offsets[$key] >= $total : $count < $size;
-                        if (!config('phppos.paginated')) {
-                            // Without a count header, completeness cannot be established on this POS.
-                            if ($total === null || $count < $total) throw new PosException();
-                            $done = true;
-                        }
-                        if ($done) {
-                            $results[$key] = array_values($rows[$key]); unset($pending[$key]);
-                        } elseif ($count === 0 || $offsets[$key] >= $size * (int) config('phppos.max_pages')) {
-                            throw new PosException();
-                        }
-                    } catch (Throwable $error) {
-                        $results[$key] = $error instanceof PosException ? $error : new PosException();
-                        unset($pending[$key], $rows[$key]);
+        foreach (array_chunk($days, 5, true) as $chunk) {
+            $queries = [];
+            foreach ($chunk as $key => $day) {
+                $queries[$key] = ['path' => '/sales', 'query' => array_filter([
+                    'start_date' => $day->copy()->startOfDay()->utc()->format('Y-m-d\TH:i:s\Z'),
+                    'end_date' => $day->copy()->endOfDay()->utc()->format('Y-m-d\TH:i:s\Z'),
+                    'location_id' => $localId,
+                ], fn ($value) => $value !== null)];
+            }
+            foreach ($this->batch($queries) as $key => $response) {
+                try {
+                    $this->ensureResponse($response);
+                    $raw = $response->json();
+                    $raw = $raw['data'] ?? $raw;
+                    if (!is_array($raw) || !array_is_list($raw)) throw new PosException('invalid_response');
+                    $header = $response->header('x-total-records');
+                    // Fail explicitly if the upstream reports a truncated day.
+                    if ($header !== '' && $header !== null && (!ctype_digit((string) $header) || (int) $header !== count($raw))) throw new PosException('invalid_response');
+                    $rows = [];
+                    foreach ($raw as $sale) {
+                        if (!is_array($sale)) throw new PosException('invalid_response');
+                        $row = $this->mapper->map($sale);
+                        if (substr($row['fecha'], 0, 10) !== (string) $key || isset($rows[$row['id']])) throw new PosException('invalid_response');
+                        $rows[$row['id']] = $row;
                     }
-                    unset($responses[$key], $response, $raw);
+                    $results[$key] = array_values($rows);
+                } catch (Throwable $error) {
+                    $results[$key] = $this->failure($error, '/sales', ['day' => (string) $key]);
                 }
             }
         }
@@ -87,35 +65,93 @@ final class PhpPosClient
 
     public function sale(int $id): array
     {
-        $response = $this->batch(['detail' => ['path' => '/sales/'.$id, 'query' => []]])['detail'];
-        $this->ensureResponse($response);
-        $raw = $response->json();
-        $raw = $raw['data'] ?? $raw;
-        if (!is_array($raw) || !isset($raw['sale_id'])) throw new PosException();
-        return $this->mapper->detail($raw);
+        try {
+            $response = $this->batch(['detail' => ['path' => '/sales/'.$id, 'query' => []]])['detail'];
+            $this->ensureResponse($response);
+            $raw = $response->json();
+            $raw = $raw['data'] ?? $raw;
+            if (!is_array($raw) || !isset($raw['sale_id'])) throw new PosException('invalid_response');
+            return $this->mapper->detail($raw);
+        } catch (Throwable $error) { throw $this->failure($error, '/sales/'.$id); }
     }
 
-    private function request(PendingRequest $request): PendingRequest
+    public function getCustomers(array $params): array { return $this->contacts('customers', $params); }
+
+    public function getCustomer(int $id): array { return $this->contacts('customers', [], $id); }
+    public function getSuppliers(array $params): array { return $this->contacts('suppliers', $params); }
+    public function getSupplier(int $id): array { return $this->contacts('suppliers', [], $id); }
+
+    private function contacts(string $resource, array $params, ?int $id = null): array
     {
+        $path = '/'.$resource.($id === null ? '' : '/'.$id);
+        try {
+            $params = $id === null ? array_replace(['offset' => 0, 'limit' => 10], $params) : [];
+            $response = $this->batch(['contacts' => ['path' => $path, 'query' => $params]])['contacts'];
+            if ($response instanceof Response && $response->status() === 404) throw new PosException('contact_not_found');
+            $this->ensureResponse($response);
+            $raw = $response->json();
+            if (!is_array($raw)) throw new PosException('invalid_response');
+            if ($id !== null) {
+                if (!$this->validContact($raw) || (int) $raw['person_id'] !== $id) throw new PosException('invalid_response');
+                return $raw;
+            }
+            $header = $response->header('x-total-records');
+            if (!array_is_list($raw) || filter_var($header, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false
+                || $header === null || count($raw) > (int) $params['limit']) throw new PosException('invalid_response');
+            foreach ($raw as $row) if (!$this->validContact($row)) throw new PosException('invalid_response');
+            $total = (int) $header;
+            if ($raw && (int) $params['offset'] + count($raw) > $total) throw new PosException('invalid_response');
+            return ['data' => $raw, 'total' => $total, 'offset' => (int) $params['offset'], 'limit' => (int) $params['limit']];
+        } catch (Throwable $error) { throw $this->failure($error, $path); }
+    }
+
+    private function validContact(mixed $row): bool
+    {
+        return is_array($row) && isset($row['person_id'])
+            && filter_var($row['person_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false;
+    }
+
+    private function request(PendingRequest $request, string $path, array $params): PendingRequest
+    {
+        $bundle = config('phppos.ca_bundle');
+        $safeParams = $params;
+        if (isset($safeParams['search'])) $safeParams['search'] = '[redacted]';
         return $request->baseUrl((string) config('phppos.url'))
             ->withHeaders(['x-api-key' => (string) config('phppos.key')])->acceptJson()
-            ->timeout((int) config('phppos.timeout'))->connectTimeout((int) config('phppos.connect_timeout'))
-            ->retry(2, 300, throw: false)->withOptions(['allow_redirects' => false]);
+            ->timeout(25)->connectTimeout(10)
+            ->retry(2, 150, fn (Throwable $error) => $this->retryConnection($error), throw: false)
+            ->withOptions([
+                'allow_redirects' => false,
+                'verify' => is_string($bundle) && is_file($bundle) && is_readable($bundle) ? $bundle : true,
+                'on_stats' => function (TransferStats $stats) use ($path, $safeParams): void {
+                    $errno = $stats->getHandlerErrorData();
+                    Log::info('phppos.request', ['path' => $path, 'params' => $safeParams,
+                        'duration_ms' => round($stats->getTransferTime() * 1000, 2),
+                        'status' => $stats->hasResponse() ? $stats->getResponse()->getStatusCode() : null,
+                        'connection_error' => is_int($errno) ? $errno : null]);
+                },
+            ]);
+    }
+
+    private function retryConnection(Throwable $error): bool
+    {
+        if (!$error instanceof ConnectionException) return false;
+        $previous = $error->getPrevious();
+        $context = $previous && method_exists($previous, 'getHandlerContext') ? $previous->getHandlerContext() : [];
+        // Only proxy/DNS/connect failures; cURL 28 (timeout) is never retried.
+        return in_array($context['errno'] ?? null, [5, 6, 7], true);
     }
 
     private function batch(array $queries): array
     {
+        if (!$queries) return [];
         try {
             if (!config('phppos.key') || !str_starts_with((string) config('phppos.url'), 'https://')) throw new PosException('auth');
-            // Shared gate also bounds concurrency across PHP workers and the warmer.
-            $ttl = 2 * max((int) config('phppos.timeout'), (int) config('phppos.connect_timeout')) + 15;
-            return Cache::store(config('phppos.cache_store'))->lock('phppos:http-pool', $ttl)->block(10, function () use ($queries) {
-                return Http::pool(function (Pool $pool) use ($queries) {
-                    foreach ($queries as $key => $query) {
-                        $this->request($pool->as((string) $key))->get($query['path'], $query['query']);
-                    }
-                }, concurrency: min(3, max(1, (int) config('phppos.concurrencia'))));
-            });
+            return Http::pool(function (Pool $pool) use ($queries) {
+                foreach ($queries as $key => $query) {
+                    $this->request($pool->as((string) $key), $query['path'], $query['query'])->get($query['path'], $query['query']);
+                }
+            }, concurrency: 5);
         } catch (Throwable $error) {
             return array_fill_keys(array_keys($queries), $error instanceof PosException ? $error : new PosException());
         }
@@ -125,8 +161,16 @@ final class PhpPosClient
     {
         if ($response instanceof PosException) throw $response;
         if (!$response instanceof Response) throw new PosException();
+        if (in_array($response->status(), [400, 422], true)) throw new PosException('invalid_parameters');
         if (in_array($response->status(), [401, 403], true)) throw new PosException('auth');
         if ($response->status() === 404) throw new PosException('not_found');
-        if (!$response->successful()) throw new PosException();
+        if (!$response->successful()) throw new PosException('upstream_failure');
+    }
+
+    private function failure(Throwable $error, string $path, array $context = []): PosException
+    {
+        $safe = $error instanceof PosException ? $error : new PosException();
+        Log::warning('phppos.error', ['path' => $path, 'kind' => $safe->kind] + $context);
+        return $safe;
     }
 }

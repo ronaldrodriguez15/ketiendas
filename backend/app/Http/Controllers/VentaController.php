@@ -13,8 +13,9 @@ final class VentaController extends Controller
     public function index(ListarVentasRequest $request, SalesService $service): JsonResponse
     {
         $result = $service->listing($request->validated());
-        return response()->json(['data' => VentaListadoResource::collection($result['data'])->resolve($request), 'meta' => $result['meta']])
-            ->header('Cache-Control', $result['meta']['parcial'] ? 'private, no-store' : 'private, max-age=30')
+        $result['data'] = VentaListadoResource::collection($result['data'])->resolve($request);
+        return response()->json($result)
+            ->header('Cache-Control', 'private, no-store')
             ->header('Vary', 'Cookie, Authorization, Origin');
     }
 
@@ -22,5 +23,16 @@ final class VentaController extends Controller
     {
         return response()->json(['data' => $service->detail($id)])
             ->header('Cache-Control', 'private, max-age=30')->header('Vary', 'Cookie, Authorization, Origin');
+    }
+
+    public function summary(ListarVentasRequest $request, SalesService $service): JsonResponse
+    {
+        $filters = array_intersect_key($request->validated(), array_flip(['desde', 'hasta', 'local_id']));
+        $result = $service->summary($filters);
+        foreach (['ultimas', 'creditos'] as $key) {
+            $result[$key] = VentaListadoResource::collection($result[$key])->resolve($request);
+        }
+        return response()->json($result)->header('Cache-Control', 'private, no-store')
+            ->header('Vary', 'Cookie, Authorization, Origin');
     }
 }

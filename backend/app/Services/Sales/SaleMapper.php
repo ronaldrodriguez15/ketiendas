@@ -20,7 +20,7 @@ final class SaleMapper
                 throw new PosException();
             }
         } catch (\Throwable) { throw new PosException(); }
-        $total = (int) round((float) $sale['total']);
+        $total = (int) $sale['total'];
         $payments = array_values(array_unique(array_map(fn ($p) => $this->text($p['payment_type'] ?? '', 80), $sale['payments'] ?? [])));
         $credit = count(array_filter($payments, fn ($p) => Str::lower(Str::ascii($p)) === 'linea de credito')) > 0;
         $state = match (true) {
@@ -41,6 +41,10 @@ final class SaleMapper
             'items' => (int) array_sum(array_map(fn ($item) => (float) ($item['quantity'] ?? 0), $sale['cart_items'] ?? [])),
             'estado' => $state, 'recibo_url' => $receipt,
             '_cliente_id' => isset($sale['customer_id']) ? (int) $sale['customer_id'] : null,
+            '_pagos' => array_map(fn ($p) => [
+                'tipo' => $this->text($p['payment_type'] ?? '', 80) ?: 'Sin especificar',
+                'monto' => is_numeric($p['payment_amount'] ?? null) ? (int) round((float) $p['payment_amount']) : null,
+            ], $sale['payments'] ?? []),
         ];
     }
 

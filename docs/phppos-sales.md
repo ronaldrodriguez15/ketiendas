@@ -55,3 +55,31 @@ real; CORS no usa comodines. VITE_API_URL apunta a Laravel, nunca al POS.
 
 El archivo .env del backend conserva la única clave real. .env.example contiene
 solo variables sin secretos. No se ha modificado la base de datos del POS.
+
+## Verificación de integración (2026-10-09)
+
+Se reutilizó la Fase 0 documentada previamente, sin repetir consultas a producción.
+React consulta VITE_API_URL (Laravel, incluyendo /api) con cookies, AbortSignal,
+TanStack Query v5, debounce de 400 ms y precarga de la siguiente página.
+
+php artisan test: 10 pruebas, 53 aserciones correctas, con datos inventados.
+Incluyen reglas de estado, fechas, filtros, paginación, caché, páginas repetidas,
+fallos parciales, autenticación, validación y whitelist de salida.
+Medición local mediante kernel Laravel con 1.000 filas inventadas en caché file:
+6,0 ms; JSON de 10 filas: 1.848 bytes. No incluye red ni Hostinger; el objetivo
+productivo de 300 ms requiere verificación allí. No se realizó prueba visual.
+
+npm.cmd run build: correcto, con advertencia de bundle general superior a 500 KB.
+El login React sigue simulado: conectar Sanctum antes del despliegue.
+
+Hostinger: ejecutar cada minuto php /ruta/backend/artisan schedule:run.
+El scheduler precarga cada cinco minutos, reutilizando entradas vigentes.
+Con TTL de hoy de 60 segundos, no garantiza caché permanentemente caliente.
+Los workers deben compartir almacenamiento file/database para el bloqueo global.
+
+## Actualización: autenticación Bearer
+
+El ticket de autenticación sustituye el TODO de login simulado: React ahora envía
+Bearer tokens de Sanctum desde sessionStorage, sin cookies. Ver auth-usuarios.md
+para crear el administrador inicial. Las respuestas autenticadas usan no-store
+para respetar revocaciones; la caché interna de filas en Laravel se conserva.

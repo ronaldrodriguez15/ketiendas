@@ -1,75 +1,71 @@
-import { DollarSign, Receipt, TrendingUp, Users } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { useAuth } from "../../context/AuthContext";
-import { VENTAS } from "../../data/ventas";
-import { SEMANA } from "../../data/dashboard";
-import { cop } from "../../utils/format";
-
-const STATS = [
-  { t: "Ventas del mes", v: cop(15750000), c: "+12,4%", i: DollarSign },
-  { t: "Pedidos", v: "312", c: "+8,1%", i: Receipt },
-  { t: "Ticket promedio", v: cop(50480), c: "+3,2%", i: TrendingUp },
-  { t: "Usuarios activos", v: "11", c: "de 14", i: Users },
-];
+import DataValue from '../../components/ui/DataValue';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { DollarSign, Receipt, Wallet, RefreshCw } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useAuth } from '../../context/AuthContext';
+import { resumenVentasQuery } from '../../services/ventasService';
+import SalesCharts from './SalesCharts';
+import Badge from '../../components/ui/Badge';
+import { cop } from '../../utils/format';
+import { todayBogota, shiftDate, shortDate, salesLink } from '../../utils/salesDates';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Hola, {user.nombre.split(" ")[0]}</h1>
-        <p style={{ color: "var(--mut)" }}>Así van las ventas de tu tienda esta semana.</p>
-      </div>
-
-      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
-        {STATS.map((s) => (
-          <div key={s.t} data-liquid className="glass hov p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm" style={{ color: "var(--mut)" }}>{s.t}</span>
-              <span style={{ background: "rgba(255,255,255,.6)", border: "1px solid #fff", color: "var(--g)", padding: 8, borderRadius: 14, boxShadow: "inset 0 1px 0 #fff" }}><s.i size={18} /></span>
-            </div>
-            <div className="text-2xl font-bold">{s.v}</div>
-            <div className="text-sm mt-1" style={{ color: "var(--g)" }}>{s.c}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div data-liquid className="glass p-5 lg:col-span-2 min-w-0">
-          <div className="font-semibold mb-4">Ventas de la semana</div>
-          <div style={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={SEMANA}>
-                <defs>
-                  <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(22,163,74,.15)" vertical={false} />
-                <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{ fill: "#5b7566", fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: "#5b7566", fontSize: 12 }} tickFormatter={(v) => `${v / 1000000}M`} />
-                <Tooltip formatter={(v) => cop(v)} contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.1)" }} />
-                <Area type="monotone" dataKey="v" stroke="#16a34a" strokeWidth={3} fill="url(#gv)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div data-liquid className="glass p-5 min-w-0">
-          <div className="font-semibold mb-3">Últimas ventas</div>
-          <div className="space-y-3">
-            {VENTAS.slice(0, 6).map((v) => (
-              <div key={v.id} className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-medium">{v.cliente}</div>
-                  <div className="text-xs" style={{ color: "var(--mut)" }}>{v.id} · {v.fecha}</div>
-                </div>
-                <div className="text-sm font-semibold">{cop(v.total)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+  const today = todayBogota();
+  const [period, setPeriod] = useState('mes');
+  const filters = { desde: period === 'mes' ? `${today.slice(0, 7)}-01` : shiftDate(today, -6), hasta: today };
+  const result = useQuery(resumenVentasQuery(filters));
+  const { resumen, dias = [], ultimas = [], creditos = [], meta } = result.data || {};
+  const stats = resumen ? [
+    { t: 'Ventas del periodo', v: cop(resumen.total_ventas), c: 'Pagadas y a crédito', i: DollarSign },
+    { t: 'Número de ventas', v: resumen.cantidad_ventas, c: 'Sin abonos, devoluciones ni anuladas', i: Receipt },
+    { t: 'Ventas a crédito', v: cop(resumen.total_credito), c: `${resumen.cantidad_credito} ventas · total original, no saldo`, i: Wallet },
+  ] : [];
+  return <div className="space-y-5">
+    <div><h1 className="text-2xl font-bold">Hola, {user.nombre.split(' ')[0]}</h1><p style={{ color: 'var(--mut)' }}>Resumen de las ventas reales de tu tienda.</p></div>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-2">{[['mes', 'Este mes'], ['semana', 'Últimos 7 días']].map(([value, label]) => <button key={value} className={`chip ${period === value ? 'on' : ''}`} onClick={() => setPeriod(value)}>{label}</button>)}</div>
+      <button className="btn" disabled={result.isFetching} onClick={() => result.refetch()}><RefreshCw size={17} className={result.isFetching ? 'animate-spin' : ''} />{result.isFetching ? 'Consultando…' : 'Actualizar'}</button>
     </div>
-  );
+    <p className="text-sm" style={{ color: 'var(--mut)' }}>{shortDate(filters.desde)} – {shortDate(filters.hasta)}</p>
+    {result.isPending && <div className="glass p-5" role="status">Cargando resumen de ventas…</div>}
+    {result.isError && <div className="glass p-5" role="alert">{result.error.message} <button className="chip" onClick={() => result.refetch()}>Reintentar</button></div>}
+    {meta?.parcial && <p role="alert" className="glass p-4">Resumen parcial: no se pudieron consultar {meta.dias_fallidos.length} días. Los importes incluyen únicamente los días disponibles. <button className="chip" onClick={() => result.refetch()}>Reintentar</button></p>}
+    {resumen && <>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(220px,100%),1fr))' }}>{stats.map(stat => <div key={stat.t} data-liquid className="glass hov p-5">
+        <div className="flex items-center justify-between gap-2 mb-3"><span className="text-sm" style={{ color: 'var(--mut)' }}>{stat.t}</span><stat.i size={20} style={{ color: 'var(--g)' }} /></div>
+        <div className="text-2xl font-bold">{stat.v}</div><div className="text-sm mt-1" style={{ color: 'var(--g)' }}>{stat.c}</div>
+      </div>)}</div>
+      <SalesCharts dias={dias} resumen={resumen} hasta={today} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section data-liquid className="glass p-5 lg:col-span-2 min-w-0">
+          <h2 className="font-semibold mb-1">Evolución de las ventas</h2>
+          <p className="text-sm mb-4" style={{ color: 'var(--mut)' }}>Identifica picos de venta y cómo cambia el crédito a lo largo del periodo.</p>
+          <div style={{ height: 300 }} aria-label="Gráfico de ventas del periodo"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dias}>
+            <defs><linearGradient id="gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} /><stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} /></linearGradient></defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(22,163,74,.15)" vertical={false} />
+            <XAxis dataKey="fecha" tickFormatter={value => value.slice(8)} axisLine={false} tickLine={false} tick={{ fill: '#5b7566', fontSize: 12 }} />
+            <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: '#5b7566', fontSize: 12 }} tickFormatter={value => value >= 1000000 ? `${value / 1000000}M` : value >= 1000 ? `${value / 1000}k` : value} />
+            <Tooltip labelFormatter={shortDate} formatter={value => cop(value)} contentStyle={{ borderRadius: 12, border: 'none' }} />
+            <Area type="monotone" dataKey="total" name="Total ventas" stroke="#16a34a" strokeWidth={3} fill="url(#gv)" />
+            <Area type="monotone" dataKey="credito" name="Ventas a crédito" stroke="#b7791f" fill="transparent" strokeWidth={2} />
+          </AreaChart></ResponsiveContainer></div>
+          <p className="text-xs" style={{ color: 'var(--mut)' }}>Verde: total de ventas · Ámbar: ventas a crédito, incluidas en el total.</p>
+        </section>
+        <section data-liquid className="glass p-5 min-w-0">
+          <h2 className="font-semibold mb-3">Últimas ventas</h2>
+          {!ultimas.length && <p>No hay ventas en el periodo consultado.</p>}
+          <div className="space-y-3">{ultimas.map(sale => <div key={sale.id} className="flex items-center justify-between gap-2"><div><div className="text-sm font-medium"><DataValue value={sale.cliente} /></div><div className="text-xs" style={{ color: 'var(--mut)' }}>#{sale.id} · {shortDate(sale.fecha)}</div><Badge estado={sale.estado} /></div><div className="text-sm font-semibold"><DataValue value={sale.total == null ? null : cop(sale.total)} /></div></div>)}</div>
+          <Link className="chip inline-block mt-4" to={salesLink(filters)}>Ver ventas del periodo</Link>
+        </section>
+      </div>
+      <section className="glass p-4">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-3"><h2 className="font-semibold">Ventas a crédito del periodo</h2><Link className="chip" to={salesLink({ ...filters, estado: 'A crédito' })}>Ver todas ({resumen.cantidad_credito})</Link></div>
+        <p className="text-sm mb-3" style={{ color: 'var(--mut)' }}>Total original de cada venta con crédito; puede incluir otros medios de pago. No equivale a la deuda actual.</p>
+        {creditos.length ? <div className="overflow-x-auto"><table className="w-full"><thead><tr><th>Venta</th><th>Cliente</th><th>Fecha</th><th>Total de la venta</th></tr></thead><tbody>{creditos.map(sale => <tr key={sale.id}><td>#{sale.id}</td><td><DataValue value={sale.cliente} /></td><td>{shortDate(sale.fecha)}</td><td className="font-semibold"><DataValue value={sale.total == null ? null : cop(sale.total)} /></td></tr>)}</tbody></table></div> : <p>No hay ventas a crédito en los días consultados.</p>}
+      </section>
+    </>}
+  </div>;
 }

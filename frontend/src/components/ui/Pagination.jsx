@@ -10,7 +10,7 @@ const rango = (page, total) => {
 export default function Pagination({ page, totalPages, from, to, totalItems, pageSize, setPage, setPageSize, sizes = [5, 8, 10, 20] }) {
   if (!totalItems) return null;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 pt-4" style={{ borderTop: "1px solid rgba(22,163,74,.12)" }}>
+    <div className="panel-pagination flex flex-wrap items-center justify-between gap-3 pt-4" style={{ borderTop: "1px solid rgba(22,163,74,.12)" }}>
       <div className="flex items-center gap-3 text-sm" style={{ color: "var(--mut)" }}>
         <span>Mostrando {from}–{to} de {totalItems}</span>
         <select className="inp plain" style={{ width: "auto", padding: ".3rem .6rem" }} value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} aria-label="Filas por página">

@@ -45,8 +45,11 @@ export default function useLiquidGlass() {
     const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
     const turbulence = document.querySelector("#liquid feTurbulence");
     const displacement = document.querySelector("#liquid feDisplacementMap");
-    const surfaceAt = (target) => target instanceof Element && !target.closest(':disabled, [aria-disabled="true"]')
-      ? target.closest("[data-liquid]") : null;
+    const surfaceAt = (target) => {
+      if (!(target instanceof Element) || target.closest('table, :disabled, [aria-disabled="true"]')) return null;
+      const surface = target.closest('[data-liquid]');
+      return surface?.querySelector('table') ? null : surface;
+    };
     const stateFor = (node) => {
       if (!states.has(node)) states.set(node, { value: [...neutral], velocity: [0, 0, 0, 0, 0], target: [...neutral], release: null,
         factor: node.matches(".glass, .liquid-key") ? config.hover.largeSurfaceFactor : 1 });

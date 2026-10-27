@@ -1,3 +1,4 @@
+import { notify } from '../../services/notifications';
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
@@ -6,19 +7,24 @@ import Logo from "../../components/ui/Logo";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, cargando: validando } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@tiendasnumber1.co");
-  const [pass, setPass] = useState("12345678");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState('');
   const [ver, setVer] = useState(false);
   const [cargando, setCargando] = useState(false);
 
+  if (validando) return <Background><div role="status" className="glass p-8">Validando sesión…</div></Background>;
   if (user) return <Navigate to="/dashboard" replace />;
 
-  const enviar = (e) => {
+  const enviar = async (e) => {
     e.preventDefault();
     setCargando(true);
-    setTimeout(() => { login(email); navigate("/dashboard"); }, 900);
+    setError('');
+    try { await login(email, pass); navigate('/dashboard'); }
+    catch (error) { setError(error.message); notify.error(error); }
+    finally { setCargando(false); }
   };
 
   return (
@@ -41,6 +47,7 @@ export default function Login() {
               </button>
             </div>
           </div>
+          {error && <p role="alert" className="mt-3">{error}</p>}
           <button type="submit" data-liquid className="btn w-full mt-5" disabled={cargando}>{cargando ? "Entrando..." : "Ingresar"}</button>
         </form>
       </div>
