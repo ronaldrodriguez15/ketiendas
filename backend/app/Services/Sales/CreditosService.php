@@ -15,11 +15,11 @@ final class CreditosService
     {
         $range = array_intersect_key($filters, array_flip(['desde', 'hasta', 'local_id']));
         ksort($range);
-        $key = 'creditos:periodo:v2:'.hash('sha256', config('phppos.url').json_encode($range).CarbonImmutable::now('America/Bogota')->format('Y-m-d'));
-        return Cache::store(config('phppos.cache_store'))->remember($key, 120, function () use ($range) {
+        $key = 'creditos:periodo:v3:'.hash('sha256', config('phppos.url').json_encode($range).CarbonImmutable::now('America/Bogota')->format('Y-m-d'));
+        return Cache::store(config('phppos.cache_store'))->remember($key, 1800, function () use ($range) {
             // Complete only the validated period (at most 31 days), never the full history.
             $rows = $this->sales->listing($range + ['estado' => 'A crédito', 'credito_antiguo' => true,
-                'requiere_pagos' => true, 'page' => 1, 'per_page' => PHP_INT_MAX])['data'];
+                'credito_dias' => 60, 'requiere_pagos' => true, 'page' => 1, 'per_page' => PHP_INT_MAX])['data'];
             $groups = [];
             foreach ($rows as $sale) {
                 $customer = $sale['_cliente_id'] > 0 ? $sale['_cliente_id'] : null;
@@ -56,6 +56,10 @@ final class CreditosService
     public function listing(array $filters): array
     {
         $rows = array_map(function ($group) { unset($group['ventas']); return $group; }, array_values($this->accounts($filters)));
+        $query = Str::lower(Str::ascii(trim((string) ($filters['q'] ?? ''))));
+        if ($query !== '') {
+            $rows = array_values(array_filter($rows, fn ($row) => str_contains(Str::lower(Str::ascii($row['nombre'])), $query)));
+        }
         return $this->paginate($rows, $filters);
     }
 

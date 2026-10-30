@@ -1,12 +1,13 @@
 import DataValue from '../../components/ui/DataValue';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { DollarSign, Receipt, Wallet, RefreshCw } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import { resumenVentasQuery } from '../../services/ventasService';
-import SalesCharts from './SalesCharts';
+const SalesCharts = lazy(() => import('./SalesCharts'));
+const SalesEvolution = lazy(() => import('./SalesEvolution'));
+const ChartLoading = () => <div style={{ minHeight: 300 }} role="status" className="animate-pulse rounded-2xl bg-green-50/60 p-5">Cargando gráficos…</div>;
 import Badge from '../../components/ui/Badge';
 import { cop } from '../../utils/format';
 import { todayBogota, shiftDate, shortDate, salesLink } from '../../utils/salesDates';
@@ -38,20 +39,12 @@ export default function Dashboard() {
         <div className="flex items-center justify-between gap-2 mb-3"><span className="text-sm" style={{ color: 'var(--mut)' }}>{stat.t}</span><stat.i size={20} style={{ color: 'var(--g)' }} /></div>
         <div className="text-2xl font-bold">{stat.v}</div><div className="text-sm mt-1" style={{ color: 'var(--g)' }}>{stat.c}</div>
       </div>)}</div>
-      <SalesCharts dias={dias} resumen={resumen} hasta={today} />
+      <Suspense fallback={<ChartLoading />}><SalesCharts dias={dias} resumen={resumen} hasta={today} /></Suspense>
       <div className="grid gap-4 lg:grid-cols-3">
         <section data-liquid className="glass p-5 lg:col-span-2 min-w-0">
           <h2 className="font-semibold mb-1">Evolución de las ventas</h2>
           <p className="text-sm mb-4" style={{ color: 'var(--mut)' }}>Identifica picos de venta y cómo cambia el crédito a lo largo del periodo.</p>
-          <div style={{ height: 300 }} aria-label="Gráfico de ventas del periodo"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dias}>
-            <defs><linearGradient id="gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} /><stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} /></linearGradient></defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(22,163,74,.15)" vertical={false} />
-            <XAxis dataKey="fecha" tickFormatter={value => value.slice(8)} axisLine={false} tickLine={false} tick={{ fill: '#5b7566', fontSize: 12 }} />
-            <YAxis axisLine={false} tickLine={false} width={48} tick={{ fill: '#5b7566', fontSize: 12 }} tickFormatter={value => value >= 1000000 ? `${value / 1000000}M` : value >= 1000 ? `${value / 1000}k` : value} />
-            <Tooltip labelFormatter={shortDate} formatter={value => cop(value)} contentStyle={{ borderRadius: 12, border: 'none' }} />
-            <Area type="monotone" dataKey="total" name="Total ventas" stroke="#16a34a" strokeWidth={3} fill="url(#gv)" />
-            <Area type="monotone" dataKey="credito" name="Ventas a crédito" stroke="#b7791f" fill="transparent" strokeWidth={2} />
-          </AreaChart></ResponsiveContainer></div>
+          <Suspense fallback={<ChartLoading />}><SalesEvolution dias={dias} /></Suspense>
           <p className="text-xs" style={{ color: 'var(--mut)' }}>Verde: total de ventas · Ámbar: ventas a crédito, incluidas en el total.</p>
         </section>
         <section data-liquid className="glass p-5 min-w-0">

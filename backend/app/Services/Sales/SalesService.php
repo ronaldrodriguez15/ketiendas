@@ -32,7 +32,7 @@ final class SalesService
             if ($this->usable($cached, $filters)) $loaded[$key] = $cached;
         }
         $query = Str::lower(Str::ascii(trim((string) ($filters['q'] ?? ''))));
-        $cutoff = CarbonImmutable::now('America/Bogota')->startOfDay()->subDays(45)->format('Y-m-d');
+        $cutoff = CarbonImmutable::now('America/Bogota')->startOfDay()->subDays($filters['credito_dias'] ?? 45)->format('Y-m-d');
         $matches = function ($row) use ($filters, $query, $cutoff) {
             return ($query === '' || str_contains(Str::lower(Str::ascii($row['cliente'].' '.$row['id'])), ltrim($query, '#')))
                 && (empty($filters['estado']) || $row['estado'] === $filters['estado'])
@@ -44,7 +44,7 @@ final class SalesService
             if (!array_key_exists($key, $loaded)) {
                 $fetch = [];
                 // Probe the newest missing day first; sparse ranges use pools of up to five.
-                $batchSize = $all || $fetched ? 5 : 1;
+                $batchSize = $all ? count($keys) : ($fetched ? 5 : 1);
                 foreach (array_slice($keys, $index) as $candidate) {
                     if (!array_key_exists($candidate, $loaded)) $fetch[$candidate] = $days[$candidate];
                     if (count($fetch) >= $batchSize) break;

@@ -1,3 +1,5 @@
+import HalloweenDecor from './HalloweenDecor';
+
 const BLOBS = [
   { size: 380, color: "#22c55e", top: "-8%", left: "-8%", duration: 36, delay: -4, x: 12, y: 10, rotation: 20 },
   { size: 420, color: "#4ade80", top: "65%", left: "75%", duration: 42, delay: -13, x: -14, y: -12, rotation: -24 },
@@ -23,6 +25,7 @@ export default function Background({ children }) {
         </div>
       </div>
       <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+      <HalloweenDecor />
     </div>
   );
 }

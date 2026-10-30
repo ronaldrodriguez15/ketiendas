@@ -29,9 +29,10 @@ final class PhpPosClient
     public function salesForDays(array $days, ?int $localId = null): array
     {
         $results = [];
-        foreach (array_chunk($days, 5, true) as $chunk) {
+        // Queue the full range; batch() limits active requests to five.
+        if ($days) {
             $queries = [];
-            foreach ($chunk as $key => $day) {
+            foreach ($days as $key => $day) {
                 $queries[$key] = ['path' => '/sales', 'query' => array_filter([
                     'start_date' => $day->copy()->startOfDay()->utc()->format('Y-m-d\TH:i:s\Z'),
                     'end_date' => $day->copy()->endOfDay()->utc()->format('Y-m-d\TH:i:s\Z'),

@@ -1,0 +1,70 @@
+.halloween-decor {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+}
+.halloween-decor * { pointer-events: none; }
+.halloween-flight {
+  --flight-start: 12vh;
+  --flight-quarter: 32vh;
+  --flight-middle: 18vh;
+  --flight-end: 48vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  color: #40334b;
+  opacity: .78;
+  animation: halloween-flight 34s linear infinite;
+}
+.halloween-flight svg { display: block; overflow: visible; }
+.halloween-flight.flight-two { --flight-start: 75vh; --flight-quarter: 48vh; --flight-middle: 64vh; --flight-end: 24vh; width: 29px; opacity: .6; animation-duration: 43s; animation-delay: -19s; }
+.halloween-flight.flight-three { --flight-start: 38vh; --flight-quarter: 68vh; --flight-middle: 45vh; --flight-end: 82vh; width: 34px; opacity: .7; animation-duration: 39s; animation-delay: -9s; animation-direction: reverse; }
+.halloween-flight.flight-four { --flight-start: 88vh; --flight-quarter: 70vh; --flight-middle: 84vh; --flight-end: 55vh; width: 32px; animation-duration: 46s; animation-delay: -32s; }
+.halloween-flight.flight-five { --flight-start: 22vh; --flight-quarter: 50vh; --flight-middle: 35vh; --flight-end: 70vh; width: 28px; opacity: .55; animation-duration: 48s; animation-delay: -12s; }
+.halloween-flight.flight-six { --flight-start: 56vh; --flight-quarter: 25vh; --flight-middle: 42vh; --flight-end: 8vh; width: 35px; opacity: .65; animation-duration: 41s; animation-delay: -28s; animation-direction: reverse; }
+.halloween-wing { transform-box: fill-box; animation: halloween-flap .65s ease-in-out infinite alternate; }
+.halloween-wing.left { transform-origin: right center; }
+.halloween-wing.right { transform-origin: left center; }
+.halloween-pumpkins { position: absolute; left: 2px; bottom: -10px; width: 64px; transform: rotate(-9deg); opacity: .95; filter: drop-shadow(0 0 7px #f6ad5540); }
+.halloween-pumpkins > svg { display: block; width: 100%; }
+.halloween-pumpkins span { position: absolute; width: 42px; left: 44px; bottom: -2px; transform: rotate(17deg); }
+.halloween-pumpkins.pumpkins-right { left: auto; right: 5px; transform: rotate(8deg); }
+.pumpkins-right span { left: -28px; transform: rotate(-19deg); }
+.halloween-pumpkins.pumpkins-top { left: auto; right: 5px; top: -10px; bottom: auto; width: 35px; transform: rotate(14deg); }
+.halloween-spark { position: absolute; color: #c88b43; font-size: 15px; opacity: .8; animation: halloween-glimmer 4s ease-in-out infinite alternate; }
+.spark-one { bottom: 43px; left: 8px; }
+.spark-two { bottom: 12px; left: 79px; font-size: 11px; animation-delay: -2s; }
+.spark-three { bottom: 44px; right: 10px; animation-delay: -1s; }
+.spark-four { bottom: 13px; right: 80px; font-size: 11px; animation-delay: -3s; }
+.spark-five { top: 0; left: 18%; font-size: 12px; animation-delay: -2s; }
+.spark-six { top: 1px; right: 24%; font-size: 13px; }
+@keyframes halloween-glimmer { from { opacity: .35; } to { opacity: .85; } }
+@keyframes halloween-flight {
+  0% { transform: translate(-45px, var(--flight-start)) rotate(-7deg); }
+  25% { transform: translate(25vw, var(--flight-quarter)) rotate(6deg); }
+  50% { transform: translate(50vw, var(--flight-middle)) rotate(-5deg); }
+  75% { transform: translate(75vw, var(--flight-end)) rotate(7deg); }
+  100% { transform: translate(calc(100vw + 45px), var(--flight-quarter)) rotate(-7deg); }
+}
+@keyframes halloween-flap { from { transform: scaleY(.55); } to { transform: scaleY(1); } }
+@media (max-width: 767px) {
+  .halloween-flight { width: 28px; opacity: .65; }
+  .halloween-flight.flight-two { width: 23px; }
+  .halloween-flight.flight-three, .halloween-flight.flight-four, .halloween-flight.flight-five, .halloween-flight.flight-six { display: none; }
+  .halloween-pumpkins { width: 43px; bottom: -12px; left: 0; }
+  .halloween-pumpkins span, .halloween-pumpkins.pumpkins-top, .spark-one, .spark-three, .spark-five, .spark-six { display: none; }
+  .spark-two { left: 39px; bottom: 6px; }
+  .spark-four { right: 44px; bottom: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .halloween-flight, .halloween-wing, .halloween-spark { animation: none; }
+  .halloween-flight { left: auto; right: 28px; top: 0; }
+  .halloween-flight.flight-two { display: block; right: auto; left: 28px; }
+  .halloween-flight.flight-three, .halloween-flight.flight-four, .halloween-flight.flight-five, .halloween-flight.flight-six { display: none; }
+}
+@media print { .halloween-decor { display: none; } }
