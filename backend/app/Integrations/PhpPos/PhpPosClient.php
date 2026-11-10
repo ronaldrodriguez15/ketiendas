@@ -78,7 +78,71 @@ final class PhpPosClient
 
     public function getCustomers(array $params): array { return $this->contacts('customers', $params); }
 
+    public function topSellers(array $params): array
+    {
+        try {
+            $response = $this->batch(['report' => ['path' => '/reports/top_sellers', 'query' => $params]])['report'];
+            if ($response instanceof Response && $response->status() === 404) throw new PosException('report_not_available');
+            if ($response instanceof Response && $response->status() === 403) throw new PosException('report_forbidden');
+            $this->ensureResponse($response);
+            $raw = $response->json();
+            if (!is_array($raw) || ($raw['report_key'] ?? null) !== 'top_sellers' || !is_array($raw['data'] ?? null)) {
+                throw new PosException('invalid_response');
+            }
+            return $raw;
+        } catch (Throwable $error) { throw $this->failure($error, '/reports/top_sellers'); }
+    }
+
     public function getCustomer(int $id): array { return $this->contacts('customers', [], $id); }
+    public function customerReportSales(array $days, ?int $localId): array
+    {
+        if (!$days) return [];
+        ksort($days);
+        $result = array_fill_keys(array_keys($days), []);
+        try {
+            $queries = [];
+            foreach ($days as $date => $day) $queries[$date] = ['path' => '/sales', 'query' => array_filter([
+                'start_date' => $day->startOfDay()->utc()->format('Y-m-d\TH:i:s\Z'),
+                'end_date' => $day->endOfDay()->utc()->format('Y-m-d\TH:i:s\Z'),
+                'location_id' => $localId,
+            ], fn ($value) => $value !== null)];
+            foreach ($this->batch($queries) as $expectedDate => $response) {
+            $this->ensureResponse($response);
+            $raw = $response->json(); $raw = $raw['data'] ?? $raw;
+            if (!is_array($raw) || !array_is_list($raw)) throw new PosException('invalid_response');
+            $total = $response->header('x-total-records');
+            if ($total !== null && $total !== '' && (!ctype_digit((string) $total) || (int) $total !== count($raw))) throw new PosException('invalid_response');
+            $seen = [];
+            foreach ($raw as $sale) {
+                if (!is_array($sale)) throw new PosException('invalid_response');
+                $row = $this->mapper->map($sale); $date = substr($row['fecha'], 0, 10);
+                if (isset($seen[$row['id']]) || $date !== (string) $expectedDate) throw new PosException('invalid_response');
+                $seen[$row['id']] = true;
+                if (!array_key_exists($date, $result)) continue;
+                $row['_report'] = \App\Services\Sales\CustomerSalesReport::fields($sale);
+                $result[$date][] = $row;
+            }
+            }
+            return $result;
+        } catch (Throwable $error) {
+            throw $this->failure($error, '/sales');
+        }
+    }
+    public function itemServiceFlags(array $ids): array
+    {
+        $queries = [];
+        foreach ($ids as $id) $queries[$id] = ['path' => '/items/'.$id, 'query' => []];
+        $flags = [];
+        foreach ($this->batch($queries) as $id => $response) {
+            $this->ensureResponse($response);
+            $row = $response->json();
+            if (!is_array($row) || (int) ($row['item_id'] ?? 0) !== (int) $id || !array_key_exists('is_service', $row)) throw new PosException('invalid_response');
+            $flag = filter_var($row['is_service'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($flag === null) throw new PosException('invalid_response');
+            $flags[$id] = $flag;
+        }
+        return $flags;
+    }
     public function getSuppliers(array $params): array { return $this->contacts('suppliers', $params); }
     public function getSupplier(int $id): array { return $this->contacts('suppliers', [], $id); }
 

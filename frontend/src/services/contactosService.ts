@@ -38,7 +38,7 @@ export interface ContactFilters {
 // The shared backend owns connection retries; do not replay slow POS requests.
 const retry = false;
 export const contactosQuery = (kind: ContactKind, filters: ContactFilters) => queryOptions({
-  queryKey: ['contactos', kind, filters], staleTime: 30_000, retry,
+  queryKey: ['contactos', kind, filters], staleTime: 60_000, retry,
   queryFn: ({ signal }): Promise<PaginatedResponse<Contact>> => {
     const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]));
     return http(`/${kind}?${params}`, { signal });

@@ -90,6 +90,7 @@ final class SalesService
         $sales = array_values(array_filter($result['data'], fn ($row) => in_array($row['estado'], ['Pagada', 'A crédito'], true)));
         $credits = array_values(array_filter($sales, fn ($row) => $row['estado'] === 'A crédito'));
         $total = array_sum(array_column($sales, 'total'));
+        $publicSale = fn ($row) => array_intersect_key($row, array_flip(['id', 'fecha', 'cliente', 'total', 'forma_pago', 'items', 'estado', 'recibo_url']));
         $days = [];
         $failed = array_flip($result['meta']['dias_fallidos']);
         $end = CarbonImmutable::parse($filters['hasta'], 'America/Bogota');
@@ -107,8 +108,8 @@ final class SalesService
                 'ticket_promedio' => count($sales) ? (int) round($total / count($sales)) : 0,
                 'total_credito' => array_sum(array_column($credits, 'total')), 'cantidad_credito' => count($credits),
                 'total_cobrado' => $result['meta']['total_cobrado']],
-            'dias' => array_values($days), 'ultimas' => array_slice($sales, 0, 6),
-            'creditos' => array_slice($credits, 0, 6),
+            'dias' => array_values($days), 'ultimas' => array_map($publicSale, array_slice($sales, 0, 6)),
+            'creditos' => array_map($publicSale, array_slice($credits, 0, 6)),
             'meta' => array_intersect_key($result['meta'], array_flip(['desde', 'hasta', 'parcial', 'dias_fallidos', 'generado_en'])),
         ];
     }
@@ -126,7 +127,9 @@ final class SalesService
     private function usable(mixed $cached, array $filters): bool
     {
         if (!is_array($cached)) return false;
+        if (!empty($filters['requiere_reporte']) && count(array_filter($cached, fn ($row) => !array_key_exists('_report', $row)))) return false;
         // Upgrade older daily cache entries only when the payment breakdown is requested.
+        if (!empty($filters['requiere_productos']) && count(array_filter($cached, fn ($row) => !array_key_exists('_productos', $row)))) return false;
         return empty($filters['requiere_pagos']) || count(array_filter($cached, fn ($row) => !array_key_exists('_pagos', $row))) === 0;
     }
 

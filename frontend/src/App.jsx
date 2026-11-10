@@ -2,17 +2,19 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout";
-const Login = lazy(() => import("./features/auth/Login"));
-const Dashboard = lazy(() => import("./features/dashboard/Dashboard"));
-const Ventas = lazy(() => import("./features/ventas/Ventas"));
-const Clientes = lazy(() => import("./features/clientes/Clientes"));
-const Proveedores = lazy(() => import("./features/proveedores/Proveedores"));
-const Cierre = lazy(() => import("./features/cierre/Cierre"));
-const Usuarios = lazy(() => import("./features/usuarios/Usuarios"));
+import { moduleLoaders } from './routes/moduleLoaders';
+const Login = lazy(moduleLoaders['/login']);
+const Dashboard = lazy(moduleLoaders['/dashboard']);
+const Ventas = lazy(moduleLoaders['/ventas']);
+const Clientes = lazy(moduleLoaders['/clientes']);
+const Proveedores = lazy(moduleLoaders['/proveedores']);
+const Cierre = lazy(moduleLoaders['/cierre']);
+const Usuarios = lazy(moduleLoaders['/usuarios']);
+const Productos = lazy(moduleLoaders['/productos']);
 import useLiquidGlass from "./hooks/useLiquidGlass";
 import LiquidGlassFilter from "./components/ui/LiquidGlassFilter";
 
-const Creditos = lazy(() => import("./features/creditos/Creditos"));
+const Creditos = lazy(moduleLoaders['/creditos']);
 
 export default function App() {
   useLiquidGlass();
@@ -27,6 +29,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/ventas" element={<Ventas />} />
           <Route element={<ProtectedRoute permiso="ventas.ver" />}>
+            <Route path="/productos" element={<Productos />} />
             <Route path="/creditos" element={<Creditos />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/proveedores" element={<Proveedores />} />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Outlet, useLocation } from "react-router-dom";
@@ -35,7 +35,9 @@ export default function DashboardLayout() {
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         <main className="flex-1 min-w-0">
           <Topbar mobileOpen={mobileOpen} onMenuOpen={() => setMobileOpen(true)} />
-          <div key={pathname} className="rise mx-auto w-full" style={{ maxWidth: 1600 }}><Outlet /></div>
+          <div key={pathname} className="rise mx-auto w-full" style={{ maxWidth: 1600 }}>
+            <Suspense fallback={<div className="glass p-5" role="status">Cargando módulo…</div>}><Outlet /></Suspense>
+          </div>
         </main>
       </div>
       {createPortal(

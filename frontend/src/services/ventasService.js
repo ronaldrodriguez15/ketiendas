@@ -8,6 +8,6 @@ export const resumenVentasQuery = (filters) => queryOptions({
   },
 });
 export const ventasQuery = (filters) => queryOptions({
-  queryKey: ['ventas', filters], staleTime: 30_000, retry: false,
+  queryKey: ['ventas', filters], staleTime: 120_000, retry: false,
   queryFn: ({ signal }) => http(`/ventas?${new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== '' && v != null))}`, { signal }),
 });

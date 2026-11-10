@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::middleware(['auth:sanctum', 'activo', 'throttle:60,1'])->group(function (): void {
+    Route::get('/reportes/productos', \App\Http\Controllers\TopProductsController::class)->middleware('can:ventas.ver');
+    Route::get('/reportes/ventas-clientes', \App\Http\Controllers\CustomerSalesReportController::class)->middleware('can:ventas.ver');
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     foreach (['customers', 'suppliers'] as $resource) {

@@ -1,0 +1,96 @@
+.christmas-decor {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  contain: strict;
+}
+.christmas-decor * { pointer-events: none; }
+/* Snow stays crisp above the glass panels without intercepting interaction. */
+.christmas-snow { z-index: 2; }
+.christmas-lights {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  justify-content: space-around;
+  height: 28px;
+  border-top: 1px solid #466f60;
+}
+.christmas-light {
+  --bulb: #d25a65;
+  position: relative;
+  width: 7px;
+  height: 11px;
+  margin-top: 7px;
+  border-radius: 40% 40% 50% 50%;
+  background: var(--bulb);
+  box-shadow: 0 2px 9px 2px #dfb85e60;
+  box-shadow: 0 2px 9px 2px color-mix(in srgb, var(--bulb) 38%, transparent);
+  animation: christmas-glow 4s var(--delay) ease-in-out infinite alternate;
+}
+.christmas-light::before {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 7px;
+  top: -7px;
+  left: 2px;
+  background: #466f60;
+}
+.christmas-light:nth-child(4n + 2) { --bulb: #dfb85e; }
+.christmas-light:nth-child(4n + 3) { --bulb: #499c80; }
+.christmas-light:nth-child(4n) { --bulb: #8bbbcf; }
+.christmas-flake {
+  position: absolute;
+  top: -12px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #416e8670, inset 0 0 1px #b8dce8;
+  opacity: .9;
+  animation: christmas-snowfall var(--duration) var(--delay) linear infinite;
+}
+.christmas-snowmen {
+  position: absolute;
+  bottom: 2px;
+  left: 3px;
+  bottom: max(2px, env(safe-area-inset-bottom, 0px));
+  left: max(3px, env(safe-area-inset-left, 0px));
+  width: clamp(48px, 5.5vw, 78px);
+}
+.christmas-snowmen svg { display: block; width: 100%; height: auto; }
+.christmas-snowmen > span { position: absolute; bottom: 0; left: 70%; width: 65%; transform: rotate(7deg); }
+.christmas-snowmen.snowmen-right { left: auto; right: 3px; right: max(3px, env(safe-area-inset-right, 0px)); }
+.snowmen-right > span { left: auto; right: 70%; transform: rotate(-7deg); }
+@keyframes christmas-snowfall {
+  from { transform: translate(0, -12px); }
+  to { transform: translate(var(--drift), calc(100vh + 24px)); }
+}
+/* A stable travel distance prevents jumps as mobile browser bars hide/show.
+   The fixed overlay still clips snow to the currently visible viewport. */
+@supports (height: 100lvh) {
+  @keyframes christmas-snowfall {
+    from { transform: translate(0, -12px); }
+    to { transform: translate(var(--drift), calc(100lvh + 24px)); }
+  }
+}
+@keyframes christmas-glow { from { opacity: .55; } to { opacity: 1; } }
+@media (max-width: 1023px) {
+  .christmas-flake:nth-child(n + 43) { display: none; }
+  .christmas-snowmen > span { display: none; }
+}
+@media (max-width: 767px), (max-height: 500px) {
+  .christmas-flake:nth-child(n + 29), .christmas-light:nth-child(n + 13) { display: none; }
+  .christmas-snowmen { width: 40px; }
+  .christmas-snowmen > span { display: none; }
+  .christmas-light { width: 6px; height: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .christmas-flake { display: none; animation: none; }
+  .christmas-light { animation: none; }
+}
+@media print { .christmas-decor { display: none; } }

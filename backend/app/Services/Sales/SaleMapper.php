@@ -41,6 +41,8 @@ final class SaleMapper
             'items' => (int) array_sum(array_map(fn ($item) => (float) ($item['quantity'] ?? 0), $sale['cart_items'] ?? [])),
             'estado' => $state, 'recibo_url' => $receipt,
             '_cliente_id' => isset($sale['customer_id']) ? (int) $sale['customer_id'] : null,
+            '_productos' => $this->products($sale),
+            '_report' => CustomerSalesReport::fields($sale),
             '_pagos' => array_map(fn ($p) => [
                 'tipo' => $this->text($p['payment_type'] ?? '', 80) ?: 'Sin especificar',
                 'monto' => is_numeric($p['payment_amount'] ?? null) ? (int) round((float) $p['payment_amount']) : null,
@@ -66,5 +68,29 @@ final class SaleMapper
     private function text(mixed $value, int $max): string
     {
         return mb_substr(trim(strip_tags((string) $value)), 0, $max);
+    }
+
+    private function products(array $sale): ?array
+    {
+        if (filter_var($sale['store_account_payment'] ?? false, FILTER_VALIDATE_BOOLEAN)) return [];
+        $items = $sale['cart_items'] ?? null;
+        if (!is_array($items) || !array_is_list($items)) return null;
+        $products = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) return null;
+            $kit = !isset($item['item_id']) && isset($item['item_kit_id']);
+            $id = $kit ? $item['item_kit_id'] : ($item['item_id'] ?? null);
+            $quantity = $item['quantity'] ?? null;
+            if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
+                || !is_numeric($quantity) || !is_finite((float) $quantity)) return null;
+            $products[] = [
+                'id' => ($kit ? 'kit-' : 'item-').$id,
+                'nombre' => $this->text($item['name'] ?? $item['item_name'] ?? '', 160) ?: ($kit ? 'Kit ' : 'Producto ').$id,
+                'codigo' => $this->text($item['item_number'] ?? $item['product_id'] ?? '', 80),
+                'categoria' => $this->text($item['category_name'] ?? $item['category'] ?? '', 100),
+                'cantidad' => (float) $quantity,
+            ];
+        }
+        return $products;
     }
 }

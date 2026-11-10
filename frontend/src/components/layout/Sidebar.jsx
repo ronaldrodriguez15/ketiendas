@@ -2,10 +2,13 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, ShoppingCart, Users, LogOut, PanelLeftClose, PanelLeftOpen, Wallet, Contact, Truck, CreditCard } from "lucide-react";
 import Logo from "../ui/Logo";
 import { useAuth } from "../../context/AuthContext";
+import { Package } from 'lucide-react';
+import { preloadModule } from '../../routes/moduleLoaders';
 
 const MENU = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/ventas", label: "Ventas", icon: ShoppingCart },
+  { to: '/productos', label: 'Más vendidos', icon: Package, permission: 'ventas.ver' },
   { to: "/creditos", label: "Créditos", icon: CreditCard, permission: "ventas.ver" },
   { to: '/clientes', label: 'Clientes', icon: Contact, permission: 'ventas.ver' },
   { to: '/proveedores', label: 'Proveedores', icon: Truck, permission: 'ventas.ver' },
@@ -27,7 +30,7 @@ export default function Sidebar({ collapsed, onToggle, mobile = false, onNavigat
       <div className="px-1 py-2 mb-4"><Logo nameClass={label} /></div>
       <nav className="space-y-1 flex-1 min-h-0 overflow-y-auto">
         {MENU.filter(({ to, permission }) => can(permission || (to === '/usuarios' ? 'usuarios.gestionar' : to === '/cierre' ? 'ventas.ver' : `${to.slice(1)}.ver`))).map(({ to, label: t, icon: Icon }) => (
-          <NavLink key={to} to={to} title={t} onClick={onNavigate} data-liquid className={({ isActive }) => `nav ${isActive ? "on" : ""}`}>
+          <NavLink key={to} to={to} title={t} onClick={onNavigate} onMouseEnter={() => preloadModule(to)} onFocus={() => preloadModule(to)} onTouchStart={() => preloadModule(to)} data-liquid className={({ isActive }) => `nav ${isActive ? "on" : ""}`}>
             <Icon size={20} className="shrink-0" /><span className={label}>{t}</span>
           </NavLink>
         ))}

@@ -13,7 +13,7 @@ import "./styles/index.css";
 const client = new QueryClient({
   queryCache: new QueryCache({ onError: (error, query) => { if (query.getObserversCount()) notify.error(error); } }),
   mutationCache: new MutationCache({ onError: notify.error }),
-  defaultOptions: { queries: { retry } },
+  defaultOptions: { queries: { retry, staleTime: 60_000, gcTime: 1_800_000, refetchOnWindowFocus: false } },
 });
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

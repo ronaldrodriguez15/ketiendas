@@ -1,2 +1,2 @@
-import Contactos from '../contactos/Contactos';
-export default function Clientes() { return <Contactos kind="customers" />; }
+import CustomerSalesReport from './CustomerSalesReport';
+export default function Clientes() { return <CustomerSalesReport />; }
